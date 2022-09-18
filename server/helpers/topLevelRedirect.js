@@ -5,6 +5,7 @@ function topLevelAuthRedirect({
     query,
   }) {
     const serializedQuery = new URLSearchParams(query).toString();
+
     return `<!DOCTYPE html>
   <html>
     <head>

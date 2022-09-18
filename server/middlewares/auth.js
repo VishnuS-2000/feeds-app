@@ -4,10 +4,17 @@ const {topLevelAuthRedirect}=require('../helpers/topLevelRedirect');
 
 function applyAuthMiddleware(app){
     app.get("/auth",async(req,res)=>{
+
+     
         if(!req.signedCookies[app.get("top-level-oauth-cookie")])
-        return res.redirect(`
-        /auth/toplevel?${new URLSearchParams(req.query).toString()}
-        `)
+        {
+            console.log("no-cookie")
+            return res.redirect(
+                `/auth/toplevel?${new URLSearchParams(req.query).toString()}`
+              );
+
+    }
+
 
         const redirectUrl=await Shopify.Auth.beginAuth(
             req,res,req.query.shop,
@@ -21,15 +28,18 @@ function applyAuthMiddleware(app){
 
 
     app.get('/auth/toplevel',(req,res)=>{
-
+        console.log("In Toplevel route")
+        try{  
+            console.log("cookie-set")
         res.cookie(app.get("top-level-oauth-cookie"),"1",{
             signed:true,
             httpOnly:true,
             sameSite:"strict"
         })
+ 
 
         res.set("Content-Type","text/html");
-
+        console.log("Reached Here")
         res.send(topLevelAuthRedirect({
             apiKey:Shopify.Context.apiKey,
             hostName:Shopify.Context.hostName,
@@ -38,12 +48,16 @@ function applyAuthMiddleware(app){
         })
 
         );
+    }
+    catch(err){
+        console.log(err)
+    }
 
     });
 
     app.get("/auth/callback",async(req,res)=>{
         try{
-
+            console.log("In Auth Callback")
             const session=await Shopify.Auth.validateAuthCallback(
                 req,res,req.query
             );
@@ -80,7 +94,7 @@ function applyAuthMiddleware(app){
                     break;
                 default:
                     res.status(500)
-                    res.send(e.message)
+                    res.send(err.message)
                     break;
             }
 

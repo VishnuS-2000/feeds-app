@@ -11,11 +11,12 @@ const {verifyRequest}=require('./middlewares/verifyRequest')
 const {storeCallBack,loadCallBack,deleteCallBack}=require("./helpers/sessions")
 
 const USE_ONLINE_TOKENS=true
-const TOP_LEVEL_AUTH_COOKIE='shopify_top_level_oauth'
+const TOP_LEVEL_OAUTH_COOKIE="shopify_top_level_oauth"
+
 
 //Initialize Shopify Context
 
-console.log(process.env.SHOPIFY_API_KEY,process.env.SHOPIFY_SCOPES)
+
 Shopify.Context.initialize({
     API_KEY:process.env.SHOPIFY_API_KEY,
     API_SECRET_KEY:process.env.SHOPIFY_APP_SECRET,
@@ -23,7 +24,7 @@ Shopify.Context.initialize({
     HOST_NAME:process.env.HOST.replace(/https:\/\//, ""),
     API_VERSION:LATEST_API_VERSION,
     IS_EMBEDDED_APP:true,
-    SESSION_STORAGE:new Shopify.Session.CustomSessionStorage(loadCallBack,storeCallBack,deleteCallBack)
+    SESSION_STORAGE:new Shopify.Session.CustomSessionStorage(storeCallBack,loadCallBack,deleteCallBack)
 
 })
 
@@ -35,8 +36,9 @@ Shopify.Webhooks.Registry.addHandler("APP_UNINSTALLED",{
     webhookHandler:async(topic,shop,body)=>{
         delete ACTIVE_SHOPIFY_SHOPS[shop]
 
-    },
+    }
 })
+
 
 
 
@@ -44,7 +46,7 @@ Shopify.Webhooks.Registry.addHandler("APP_UNINSTALLED",{
 
 const app=express()
 
-app.set("top-level-oauth-cookie",TOP_LEVEL_AUTH_COOKIE)
+app.set("top-level-oauth-cookie",TOP_LEVEL_OAUTH_COOKIE)
 app.set("active-shopify-shops",ACTIVE_SHOPIFY_SHOPS)
 app.set("use-online-tokens",USE_ONLINE_TOKENS)
 
@@ -56,6 +58,7 @@ applyAuthMiddleware(app)
 
 app.post('/webhooks',async(req,res)=>{
     try{
+        console.log("Started...")
         await Shopify.Webhooks.process.Registry.process(req,res);
         console.log("Webhooks Processed,returned status code 200")
     }
@@ -85,10 +88,15 @@ app.post('/graphql',verifyRequest(app),async(req,res)=>{
 })
 
 
-app.use(express.static(path.resolve(__dirname,"../client/build")))
+
 app.use(express.json())
+app.use(express.urlencoded({extended:false}))
+
+
+app.use(express.static(path.resolve(__dirname,"../client/build")))
 
 app.use((req,res,next)=>{
+
     const shop=req.query.shop
     if(Shopify.Context.IS_EMBEDDED_APP&&shop){
         res.setHeader("Content-Security-Policy",`frame-ancestors https://${shop} https://admin.shopify.com;`);
@@ -100,12 +108,13 @@ app.use((req,res,next)=>{
     next();
 })
 
-app.use("/*",(req,res,next)=>{
+app.use("/*",async(req,res,next)=>{
     const {shop}=req.query;
-
+ 
 
     //Detect whether app needs reinstall by checking shop is undefined
-    if(app.get("active-shopify-shops")[shop]==undefined&&shop){
+    if(app.get("active-shopify-shops")[shop] === undefined && shop){
+
         res.redirect(`/auth?${new URLSearchParams(req.query).toString()}`);
     }
     else{
@@ -116,12 +125,17 @@ app.use("/*",(req,res,next)=>{
 
 
 
+
+
+
 app.get('/api/v1',(req,res)=>{
-    res.status(200).json({'message':'Welcome to Feeds-appv1.0'})
+    res.status(200).json({'message':'Welcome to Feeds app by Carbo apps'})
 })
 
 
-app.get("*",(req,res)=>{
+
+app.use("/*",(req,res)=>{
+    console.log("rendered")
     res.sendFile(path.resolve(__dirname,"../client/build","index.html"))
 })
 
