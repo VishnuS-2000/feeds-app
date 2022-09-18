@@ -5,23 +5,25 @@ const path=require('path')
 const cookieParser=require('cookie-parser')
 
 const {Shopify,LATEST_API_VERSION}=require('@shopify/shopify-api')
-const {applyAuthMiddleware}=require('./middleware/auth')
-const {verifyRequest}=require('./middleware/verifyRequest')
+const {applyAuthMiddleware}=require('./middlewares/auth')
+const {verifyRequest}=require('./middlewares/verifyRequest')
 
-const {storeCallBack,loadCallBack,deleteCallBack}=require("./helpers/session")
+const {storeCallBack,loadCallBack,deleteCallBack}=require("./helpers/sessions")
 
 const USE_ONLINE_TOKENS=true
 const TOP_LEVEL_AUTH_COOKIE='shopify_top_level_oauth'
 
 //Initialize Shopify Context
+
+console.log(process.env.SHOPIFY_API_KEY,process.env.SHOPIFY_SCOPES)
 Shopify.Context.initialize({
     API_KEY:process.env.SHOPIFY_API_KEY,
     API_SECRET_KEY:process.env.SHOPIFY_APP_SECRET,
     SCOPES:process.env.SHOPIFY_SCOPES.split(','),
-    HOST_NAME:process.env.HOST_NAME.replace(/https:\/\//, ""),
+    HOST_NAME:process.env.HOST.replace(/https:\/\//, ""),
     API_VERSION:LATEST_API_VERSION,
     IS_EMBEDDED_APP:true,
-    SESSION_STORAGE:new Shopify.CustomSessionStorage(loadCallBack,storeCallBack,deleteCallBack)
+    SESSION_STORAGE:new Shopify.Session.CustomSessionStorage(loadCallBack,storeCallBack,deleteCallBack)
 
 })
 
@@ -63,6 +65,23 @@ app.post('/webhooks',async(req,res)=>{
             res.status(500).send(err.message)
         }
     }
+})
+
+
+
+//proxy for graphql api queries
+
+app.post('/graphql',verifyRequest(app),async(req,res)=>{
+
+    try{
+        const response=await Shopify.Utils.graphqlProxy(req,res)
+        res.status(200).send(respone.body)
+
+    }
+    catch(err){
+        res.status(500).send(err.message)
+    }
+
 })
 
 

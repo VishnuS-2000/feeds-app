@@ -1,4 +1,4 @@
-export default function topLevelAuthRedirect({
+function topLevelAuthRedirect({
     apiKey,
     hostName,
     host,
@@ -36,3 +36,5 @@ export default function topLevelAuthRedirect({
     <body></body>
   </html>`;
   }
+
+module.exports.topLevelAuthRedirect=topLevelAuthRedirect;
